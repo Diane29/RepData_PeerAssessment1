@@ -1,0 +1,132 @@
+# Reproducible Research: Peer Assessment 1
+
+
+
+
+## Input Activity data
+
+
+```r
+setwd("~/RR")
+library(ggplot2)
+```
+
+```
+## Warning: package 'ggplot2' was built under R version 3.2.4
+```
+
+```r
+activity <- read.csv("activity.csv",header=TRUE,sep=",")
+## activity$interval <- as.factor(activity$interval)
+```
+## What is mean total number of steps taken per day?
+
+
+```r
+#Calculate the total number of steps daily and assign column names
+tot_steps <- aggregate(activity$steps,list(activity$date),FUN=sum)
+colnames(tot_steps) <- c("Date","Tot_Steps")
+
+#Plot histogram of daily total number of steps 
+hist(tot_steps$Tot_Steps,xlab=" Total Steps",main = "Total Steps per Day")
+```
+
+![](PA1_files/figure-html/unnamed-chunk-2-1.png)
+
+```r
+#Calculate the mean and median number of steps
+summary(tot_steps$Tot_Steps)
+```
+
+```
+##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+##      41    8841   10760   10770   13290   21190       8
+```
+
+## What is the average daily activity pattern?
+
+
+```r
+#Calculate the mean number of steps by interval and assign column names
+steps_interval <- aggregate(steps ~ interval, data=activity, FUN=mean)
+colnames(steps_interval) <- c("interval","avg_steps")
+
+#Plot time series of average number of steps per 5-min intervals
+plot(steps_interval, type="l",xlab=" 5-minute Intervals", 
+     ylab="Average Steps",
+     main="Average Number of Steps per 5-min Interval")
+```
+
+![](PA1_files/figure-html/unnamed-chunk-3-1.png)
+
+```r
+#The max average number of step in an interval
+steps_interval[which.max(steps_interval$avg_steps),]
+```
+
+```
+##     interval avg_steps
+## 104      835  206.1698
+```
+
+## Imputing missing values
+
+
+```r
+#Check the number of rows with NAs in the initial dataset
+table(is.na(activity))
+```
+
+```
+## 
+## FALSE  TRUE 
+## 50400  2304
+```
+
+```r
+#Merge initial Activity dataset with the Average steps by Interval dataset
+#Then assign the average number of steps in an interval to the corresponding row with NA
+activity_interval <- merge(activity, steps_interval, by="interval")
+activity_interval$steps[is.na(activity_interval$steps)] <- activity_interval$avg_steps[is.na(activity_interval$steps)]
+
+#Calculate the total number of steps daily and assign column names
+tot_steps_imp <- aggregate(activity_interval$steps,list(activity_interval$date),FUN=sum)
+colnames(tot_steps_imp) <- c("Date","Tot_Steps")
+
+#Plot histogram of daily total number of steps with the imputed values 
+hist(tot_steps_imp$Tot_Steps,xlab=" Total Steps",main = "Total Steps per Day")
+```
+
+![](PA1_files/figure-html/unnamed-chunk-4-1.png)
+
+```r
+#Calculate the new mean and median number of steps
+summary(tot_steps_imp$Tot_Steps)
+```
+
+```
+##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##      41    9819   10770   10770   12810   21190
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+
+```r
+#Create a new factor variable day_type that differentiates the day of the week by weekday or weekend
+activity_interval$date <- as.Date(activity_interval$date, format = "%Y-%m-%d")
+activity_interval['day_type'] <- weekdays(activity_interval$date)
+activity_interval$day_type[activity_interval$day_type %in% c('Saturday','Sunday') ] <- "weekend"
+activity_interval$day_type[activity_interval$day_type != "weekend"] <- "weekday"
+activity_interval$day_type <-  as.factor(activity_interval$day_type)
+
+#Calculate the average number of steps by interval and the new variable day_type
+wk_tot_steps_imp <- aggregate(steps ~ interval + day_type, activity_interval, mean)
+
+##Plot time series of steps per 5-min intervals by day_type
+g <- ggplot(data=wk_tot_steps_imp, aes(interval, steps))
+g + facet_grid(day_type ~ .)+geom_line() +
+  labs(x="5-minute Intervals", y="Average Number of Steps")
+```
+
+![](PA1_files/figure-html/unnamed-chunk-5-1.png)
